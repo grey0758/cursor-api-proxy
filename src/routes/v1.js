@@ -20,7 +20,7 @@ router.get("/models", async (req, res) => {
 
     const cursorChecksum = req.headers['x-cursor-checksum'] 
       ?? generateCursorChecksum(authToken.trim());
-    const cursorClientVersion = "0.48.7"
+    const cursorClientVersion = "2.5.25"
 
     const availableModelsResponse = await fetch("https://api2.cursor.sh/aiserver.v1.AiService/AvailableModels", {
       method: 'POST',
@@ -34,7 +34,7 @@ router.get("/models", async (req, res) => {
         'x-cursor-client-version': cursorClientVersion,
         'x-cursor-config-version': uuidv4(),
         'x-cursor-timezone': 'Asia/Shanghai',
-        'x-ghost-mode': 'true',
+        'x-ghost-mode': 'false',
         'Host': 'api2.cursor.sh',
       },
     })
@@ -92,7 +92,7 @@ router.post('/chat/completions', async (req, res) => {
 
     const sessionid = uuidv5(authToken,  uuidv5.DNS);
     const clientKey = generateHashed64Hex(authToken)
-    const cursorClientVersion = "0.48.7"
+    const cursorClientVersion = "2.5.25"
     const cursorConfigVersion = uuidv4();
 
     // Request the AvailableModels before StreamChat.
@@ -110,7 +110,7 @@ router.post('/chat/completions', async (req, res) => {
         'x-cursor-client-version': cursorClientVersion,
         'x-cursor-config-version': cursorConfigVersion,
         'x-cursor-timezone': 'Asia/Shanghai',
-        'x-ghost-mode': 'true',
+        'x-ghost-mode': 'false',
         "x-request-id": uuidv4(),
         "x-session-id": sessionid,
         'Host': 'api2.cursor.sh',
@@ -136,7 +136,7 @@ router.post('/chat/completions', async (req, res) => {
         'x-cursor-client-version': cursorClientVersion,
         'x-cursor-config-version': cursorConfigVersion,
         'x-cursor-timezone': 'Asia/Shanghai',
-        'x-ghost-mode': 'true',
+        'x-ghost-mode': 'false',
         'x-request-id': uuidv4(),
         'x-session-id': sessionid,
         'Host': 'api2.cursor.sh'
@@ -150,8 +150,8 @@ router.post('/chat/completions', async (req, res) => {
     });
 
     if (response.status !== 200) {
-      return res.status(response.status).json({ 
-        error: response.statusText 
+      return res.status(response.status).json({
+        error: response.statusText
       });
     }
 
