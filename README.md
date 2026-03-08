@@ -1,110 +1,167 @@
-# Cursor To OpenAI
+# Cursor API Proxy
 
-Convert the Cursor Editor to an OpenAI API interface service.
+将 Cursor IDE 的 AI API（Protobuf/Connect-RPC）转换为 OpenAI 兼容格式的反向代理服务。
 
-## Introduction
+Convert Cursor IDE AI API (Protobuf/Connect-RPC) to OpenAI-compatible format.
 
-This project provides a proxy service that converts the AI chat of the Cursor Editor into an OpenAPI API, allowing you to reuse the LLM of the Cursor in other applications.
+## Features
 
-## Preparsuitue
+- OpenAI 兼容的 `/v1/chat/completions` 和 `/v1/models` 接口
+- 支持流式（SSE）和非流式响应
+- 支持 74+ 模型，包括 Claude 4.6、GPT-5.x、Gemini 3.x 等
+- 支持 thinking 模式（思维链）
+- 可与任何 OpenAI 兼容客户端集成（ChatBox、Open WebUI、ChatGPT-Next-Web 等）
 
-Visit [Cursor](https://www.cursor.com) and register a account.
-- 150 fast premium requests are given, which can be reset by deleting the account and then registering again
-- Suggest to use gmail/outlook email, some temp emails have been disabled by Cursor.
+## Quick Start
 
-### Get Cursor client cookie
+### 安装依赖
 
-The cookie from Cursor webpage does not work in Cursor-To-OpenAI server. You need to get the Cursor client cookie following these steps:
-
-1. Run `npm install` to initialize the environment。
-2. Run `npm run login`. Open the URL shows in the log, and then login your account.
-3. The cookie shows in your command is the `Curosr Cookie` value. Copy and save it to your notepad.
-
-The log of this command looks like:
-```
-[Log] Please open the following URL in your browser to login:
-https://www.cursor.com/loginDeepControl?challenge=6aDBevuHkK-HLiZ<......>k2lEjbVRMpg&uuid=5147ac09<....>5fe5f3aeb&mode=login      <-- Copy the url and open it in your browser.
-[Log] Waiting for login... (1/60)
-[Log] Waiting for login... (2/60)
-[Log] Waiting for login... (3/60)
-[Log] Waiting for login... (4/60)
-[Log] Login successfully. Your Cursor cookie:
-user_01JJF<.....>K3F4T8%3A%3AeyJhbGciOiJIUzI1NiIsInR5cCI6Ikp<...................>AsCpbPfnlHy022WxmlKIt4Q7Ll0     <-- This is the Cursor cookie, please save it.
-```
-
-#### API to get Cursor client cookie
-
-We provide an API to save you from manual login. You need to log in to your Cursor account in browser and get `WorkosCursorSessionToken` from Application-Cookie.
-1. Get Cursor client cookie
-    - Url：`http://localhost:3010/cursor/loginDeepContorl`
-    - Request：`GET`
-    - Authentication：`Bearer Token`（The value of `WorkosCursorSessionToken` from Cursor webpage)
-    - Reponse: In JSON, the value of `accessToken` is the `Cursor Cookie` in JWT format. That's what you want.
-
-Sample request:
-```
-import requests
-
-WorkosCursorSessionToken = "{{{Repalce by your WorkosCursorSessionToken from cookie in browser}}}}"
-response = requests.get("http://localhost:3010/cursor/loginDeepControl", headers={
-    "authorization": f"Bearer {WorkosCursorSessionToken}"
-})
-data = response.json()
-cookie = data["accessToken"]
-print(cookie)
-```
-
-## How to Run
-
-### Run in docker
-```
-docker run -d --name cursor-to-openai -p 3010:3010 ghcr.io/jiuz-chn/cursor-to-openai:latest
-```
-
-### Run in npm
-```
+```bash
 npm install
+```
+
+### 启动服务
+
+```bash
 npm run start
 ```
 
-## How to use the server
+服务运行在 `http://localhost:3010`
 
-1. Get models
-    - Url：`http://localhost:3010/v1/models`
-    - Request：`GET`
-    - Authentication：`Bearer Token`（The value of `Cursor Cookie`)
+### Docker 部署
 
-2. Chat completion
-    - Url：`http://localhost:3010/v1/chat/completions`
-    - Request：`POST`
-    - Authentication：`Bearer Token`（The value of `Cursor Cookie`，supports comma-separated values）
-
- for the response body, please refer to the OpenAI interface
-
-### Python demo
+```bash
+docker run -d --name cursor-api-proxy -p 3010:3010 ghcr.io/jiuz-chn/cursor-to-openai:latest
 ```
+
+## 获取 Cursor Cookie
+
+### 方式一：通过抓包获取
+
+使用 Fiddler 等抓包工具，捕获 Cursor IDE 的 HTTPS 请求，从请求头中提取 `Authorization: Bearer <token>` 中的 JWT Token。
+
+### 方式二：通过登录获取
+
+```bash
+npm run login
+```
+
+按照提示在浏览器中登录，命令行会显示 Cookie 值。
+
+### 方式三：通过 API 获取
+
+在浏览器中登录 Cursor 账号，从 Application → Cookie 中获取 `WorkosCursorSessionToken`，然后：
+
+```python
+import requests
+
+WorkosCursorSessionToken = "your_session_token"
+response = requests.get("http://localhost:3010/cursor/loginDeepControl", headers={
+    "authorization": f"Bearer {WorkosCursorSessionToken}"
+})
+cookie = response.json()["accessToken"]
+print(cookie)
+```
+
+## API 使用
+
+### 获取模型列表
+
+```
+GET http://localhost:3010/v1/models
+Authorization: Bearer <your-cursor-cookie>
+```
+
+### 聊天补全
+
+```
+POST http://localhost:3010/v1/chat/completions
+Authorization: Bearer <your-cursor-cookie>
+Content-Type: application/json
+
+{
+  "model": "claude-4.5-sonnet",
+  "messages": [{"role": "user", "content": "Hello"}],
+  "stream": true
+}
+```
+
+### 可用模型（部分）
+
+| 模型 | 说明 |
+|------|------|
+| `default` | 默认模型，自动选择 |
+| `claude-4.6-sonnet-medium` | Claude 4.6 Sonnet |
+| `claude-4.6-opus-high` | Claude 4.6 Opus |
+| `claude-4.6-opus-max-thinking` | Claude 4.6 Opus 思维链 |
+| `claude-4.5-sonnet` | Claude 4.5 Sonnet |
+| `claude-4.5-sonnet-thinking` | Claude 4.5 Sonnet 思维链 |
+| `gpt-5.2` | GPT-5.2 |
+| `gpt-5-mini` | GPT-5 Mini |
+| `gemini-3.1-pro` | Gemini 3.1 Pro |
+
+完整列表通过 `/v1/models` 接口获取。
+
+### Python 示例
+
+```python
 from openai import OpenAI
 
-client = OpenAI(api_key="{{{Replace by the Cursor cookie of your account. It starts with user_...}}}",
-                base_url="http://localhost:3010/v1")
-
-response = client.chat.completions.create(
-    model="claude-3-7-sonnet",
-    messages=[
-        {"role": "user", "content": "Hello."},
-    ],
-    stream=False
+client = OpenAI(
+    api_key="your-cursor-cookie",
+    base_url="http://localhost:3010/v1"
 )
 
-print(response.choices)
+response = client.chat.completions.create(
+    model="claude-4.6-sonnet-medium",
+    messages=[{"role": "user", "content": "Hello!"}],
+    stream=True
+)
+
+for chunk in response:
+    content = chunk.choices[0].delta.content
+    if content:
+        print(content, end="", flush=True)
 ```
 
-## Notes
+### cURL 示例
 
-- Please keep your Cursor cookie properly and do not disclose it to others
-- This project is for study and research only, please abide by the Cursor Terms of Use
+```bash
+curl http://localhost:3010/v1/chat/completions \
+  -H "Authorization: Bearer your-cursor-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-4.6-sonnet-medium",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": true
+  }'
+```
+
+## 配置
+
+在项目根目录创建 `.env` 文件：
+
+```env
+PORT=3010
+ROUTE_PREFIX=
+PROXY_URL=           # HTTP 代理地址（可选）
+```
+
+## 注意事项
+
+- 请妥善保管 Cursor Cookie，不要泄露给他人
+- 本项目仅供学习研究使用，请遵守 Cursor 使用条款
+- `x-cursor-client-version` 需要与你的 Cursor IDE 版本一致（当前为 2.5.25）
+
+## 相关修改
+
+基于 [Cursor-To-OpenAI](https://github.com/JiuZ-Chn/Cursor-To-OpenAI) 的主要改动：
+
+- 更新 `x-cursor-client-version` 至 `2.5.25`（旧版本被 Cursor API 拒绝）
+- 设置 `x-ghost-mode` 为 `false`（适配团队订阅）
 
 ## Acknowledgements
 
-- This project is based on [cursor-api](https://github.com/zhx47/cursor-api)(by zhx47).
-- This project integrates the commits in [cursor-api](https://github.com/lvguanjun/cursor-api)(by lvguanjun).
+- Based on [Cursor-To-OpenAI](https://github.com/JiuZ-Chn/Cursor-To-OpenAI) by JiuZ-Chn
+- Originally based on [cursor-api](https://github.com/zhx47/cursor-api) by zhx47
+- Integrates commits from [cursor-api](https://github.com/lvguanjun/cursor-api) by lvguanjun
