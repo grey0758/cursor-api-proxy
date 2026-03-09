@@ -6,17 +6,12 @@ const { v4: uuidv4, v5: uuidv5 } = require('uuid');
 const config = require('../config/config');
 const $root = require('../proto/message.js');
 const { generateCursorBody, chunkToUtf8String, generateHashed64Hex, generateCursorChecksum } = require('../utils/utils.js');
+const { resolveToken, normalizeCursorToken } = require('../middleware/auth.js');
 
 router.get("/models", async (req, res) => {
   try{
-    let bearerToken = req.headers.authorization?.replace('Bearer ', '');
-    let authToken = bearerToken.split(',').map((key) => key.trim())[0];
-    if (authToken && authToken.includes('%3A%3A')) {
-      authToken = authToken.split('%3A%3A')[1];
-    }
-    else if (authToken && authToken.includes('::')) {
-      authToken = authToken.split('::')[1];
-    }
+    const resolvedToken = resolveToken(req);
+    let authToken = normalizeCursorToken(resolvedToken);
 
     const cursorChecksum = req.headers['x-cursor-checksum'] 
       ?? generateCursorChecksum(authToken.trim());
@@ -69,22 +64,13 @@ router.post('/chat/completions', async (req, res) => {
 
   try {
     const { model, messages, stream = false } = req.body;
-    let bearerToken = req.headers.authorization?.replace('Bearer ', '');
-    const keys = bearerToken.split(',').map((key) => key.trim());
-    // Randomly select one key to use
-    let authToken = keys[Math.floor(Math.random() * keys.length)]
+    const resolvedToken = resolveToken(req);
+    let authToken = normalizeCursorToken(resolvedToken);
 
     if (!messages || !Array.isArray(messages) || messages.length === 0 || !authToken) {
       return res.status(400).json({
         error: 'Invalid request. Messages should be a non-empty array and authorization is required',
       });
-    }
-
-    if (authToken && authToken.includes('%3A%3A')) {
-      authToken = authToken.split('%3A%3A')[1];
-    }
-    else if (authToken && authToken.includes('::')) {
-      authToken = authToken.split('::')[1];
     }
 
     const cursorChecksum = req.headers['x-cursor-checksum']

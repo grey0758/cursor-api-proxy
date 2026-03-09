@@ -5,22 +5,7 @@ const { v4: uuidv4, v5: uuidv5 } = require('uuid');
 const config = require('../config/config');
 const $root = require('../proto/message.js');
 const { generateCursorBody, chunkToUtf8String, generateHashed64Hex, generateCursorChecksum } = require('../utils/utils.js');
-
-// Extract auth token from either x-api-key or Authorization header
-function extractToken(req) {
-  let token = req.headers['x-api-key'] || '';
-  if (!token) {
-    token = req.headers.authorization?.replace('Bearer ', '') || '';
-  }
-  const keys = token.split(',').map(k => k.trim());
-  let authToken = keys[Math.floor(Math.random() * keys.length)];
-  if (authToken && authToken.includes('%3A%3A')) {
-    authToken = authToken.split('%3A%3A')[1];
-  } else if (authToken && authToken.includes('::')) {
-    authToken = authToken.split('::')[1];
-  }
-  return authToken;
-}
+const { resolveToken, normalizeCursorToken } = require('../middleware/auth.js');
 
 // Convert Anthropic messages format to internal format
 function convertMessages(body) {
@@ -69,7 +54,7 @@ function mapModel(model) {
 
 router.post('/messages', async (req, res) => {
   try {
-    const authToken = extractToken(req);
+    const authToken = normalizeCursorToken(resolveToken(req));
     if (!authToken) {
       return res.status(401).json({
         type: 'error',
