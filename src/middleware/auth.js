@@ -24,14 +24,11 @@ function resolveToken(req) {
   // If AUTH_TOKEN is configured, validate the client key
   if (config.authToken) {
     if (clientKey === config.authToken) {
-      // Client authenticated with custom token, use CURSOR_COOKIE
       return config.cursorCookie || clientKey;
     }
-    // If client key doesn't match AUTH_TOKEN, still allow raw cursor cookie
-    // (for backward compatibility)
   }
 
-  // If CURSOR_COOKIE is set and client sends the AUTH_TOKEN or no specific cookie
+  // If CURSOR_COOKIE is set and client sends no key
   if (config.cursorCookie && !clientKey) {
     return config.cursorCookie;
   }
